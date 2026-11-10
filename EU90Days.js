@@ -154,11 +154,18 @@ function phrase(state, passed, pct, paused) {
 const THEMES = {
   forest: { name: "Ліс", bg: "#17211c", ok: "#75d78d", warn: "#edb345", danger: "#fe8b83", protect: "#e3a2f2" },
   sunset: { name: "Захід сонця", bg: "#241c18", ok: "#e9c769", warn: "#fc984c", danger: "#f97770", protect: "#8ed09c" },
-  graphite: { name: "Графіт", bg: "#1c1c1c", ok: "#f2f2f2", warn: "#edb345", danger: "#fe8b83", protect: "#e3a2f2" }
+  graphite: { name: "Графіт", bg: "#1c1c1c", ok: "#f2f2f2", warn: "#edb345", danger: "#fe8b83", protect: "#e3a2f2" },
+  bordeaux: { name: "Бордо", bg: "#2a1216", ok: "#ecc69c", warn: "#ebbd57", danger: "#ff7c8a", protect: "#94cf9f" },
+  mint: { name: "М'ята", bg: "#0c221c", ok: "#87e8bf", warn: "#e3d372", danger: "#fd8c7b", protect: "#f6b294" },
+  lavender: { name: "Лаванда", bg: "#201528", ok: "#f4b2e5", warn: "#e9c769", danger: "#ff8880", protect: "#92e2b7" },
+  desert: { name: "Пустеля", bg: "#281c13", ok: "#e3cfa5", warn: "#f49157", danger: "#f17264", protect: "#afc48b" },
+  cream: { name: "Крем (світла)", bg: "#f4f0e6", fg: "#2b221a", ok: "#2d8949", warn: "#b77610", danger: "#cb4644", protect: "#9856a7" },
+  gold: { name: "Чорне золото", bg: "#151410", ok: "#eccb61", warn: "#f99549", danger: "#fd736d", protect: "#dcd7c9" }
 };
 let PAL = THEMES.forest;
 function setTheme(state) {
-  PAL = THEMES[state.theme] || THEMES.forest;
+  // fg — колір тексту й напівпрозорих елементів (білий для темних тем, темний для світлої)
+  PAL = Object.assign({ fg: "#ffffff" }, THEMES[state.theme] || THEMES.forest);
 }
 
 // ширина віджета (pt) за шириною екрана; віднімаємо бічні відступи
@@ -197,11 +204,11 @@ function addChip(parent, cc, n, { isCur, protect, warn }) {
   c.setPadding(4, 9, 4, 9);
   c.cornerRadius = 10;
   c.spacing = 4;
-  c.backgroundColor = protect ? new Color(PAL.protect, 0.18) : new Color("#ffffff", 0.08);
-  const tint = protect ? new Color(PAL.protect) : warn && isCur ? new Color(PAL.warn) : new Color("#ffffff", 0.8);
+  c.backgroundColor = protect ? new Color(PAL.protect, 0.18) : new Color(PAL.fg, 0.08);
+  const tint = protect ? new Color(PAL.protect) : warn && isCur ? new Color(PAL.warn) : new Color(PAL.fg, 0.8);
   if (isCur) {
     c.borderWidth = 1;
-    c.borderColor = warn ? new Color(PAL.warn, 0.7) : new Color("#ffffff", 0.35);
+    c.borderColor = warn ? new Color(PAL.warn, 0.7) : new Color(PAL.fg, 0.35);
   }
   if (protect) addIcon(c, "shield.fill", 10, tint);
   const t = c.addText(`${flag(cc)} ${n} дн`);
@@ -216,7 +223,7 @@ async function buildWidget(state) {
   const pct = Math.round((passed / TOTAL) * 100);
   const paused = inProtectionToday(state);
   const accent = new Color(paused ? PAL.protect : pct >= 85 ? PAL.danger : pct >= 60 ? PAL.warn : PAL.ok);
-  const secondary = new Color("#ffffff", 0.55);
+  const secondary = new Color(PAL.fg, 0.55);
   const W = contentWidth();
 
   const w = new ListWidget();
@@ -243,7 +250,7 @@ async function buildWidget(state) {
   row.bottomAlignContent();
   const big = row.addText(String(passed));
   big.font = Font.semiboldRoundedSystemFont(38);
-  big.textColor = Color.white();
+  big.textColor = new Color(PAL.fg);
   row.addSpacer(4);
   const of = row.addText(`/ ${TOTAL} днів`);
   of.font = Font.mediumSystemFont(14);
@@ -265,7 +272,7 @@ async function buildWidget(state) {
     const seg = bar.addStack();
     seg.size = new Size(segW, 8);
     seg.cornerRadius = 4;
-    seg.backgroundColor = new Color("#ffffff", 0.14);
+    seg.backgroundColor = new Color(PAL.fg, 0.14);
     const f = Math.min(1, Math.max(0, (passed - k * 30) / 30));
     if (f > 0) {
       const fill = seg.addStack();

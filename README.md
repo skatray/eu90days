@@ -11,7 +11,29 @@
 - **Геолокація двічі на день.** Віджет визначає країну приблизно раз на 12 годин і веде журнал днів по країнах.
 - **Дні по країнах.** Плашки на віджеті, поточна країна підсвічена.
 - **Живі фрази й віхи.** Щоденна фраза за етапом, привітання на добу після перетину кордону, віхи на 30, 45 і 60 днів.
-- **Три кольорові теми.** Ліс, Захід сонця, Графіт.
+- **Дев'ять кольорових тем**, у тому числі світла. Див. розділ «Теми».
+
+## Теми
+
+Кольори підібрані в OKLCH: однакова світлота й насиченість, різні відтінки. Шкала «добре → увага → ліміт» змінює колір прогрес-бара на 60% і 85%, окремий колір віддано країні тимчасового захисту. Вибір теми: меню скрипта → «Кольорова тема».
+
+<table>
+<tr>
+<td align="center"><img src="docs/themes/forest.svg" width="280" alt="Ліс"><br>Ліс</td>
+<td align="center"><img src="docs/themes/sunset.svg" width="280" alt="Захід сонця"><br>Захід сонця</td>
+<td align="center"><img src="docs/themes/graphite.svg" width="280" alt="Графіт"><br>Графіт</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/themes/bordeaux.svg" width="280" alt="Бордо"><br>Бордо</td>
+<td align="center"><img src="docs/themes/mint.svg" width="280" alt="М'ята"><br>М'ята</td>
+<td align="center"><img src="docs/themes/lavender.svg" width="280" alt="Лаванда"><br>Лаванда</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/themes/desert.svg" width="280" alt="Пустеля"><br>Пустеля</td>
+<td align="center"><img src="docs/themes/cream.svg" width="280" alt="Крем (світла)"><br>Крем (світла)</td>
+<td align="center"><img src="docs/themes/gold.svg" width="280" alt="Чорне золото"><br>Чорне золото</td>
+</tr>
+</table>
 
 ## Встановлення
 

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 346 174" width="692" height="348" role="img" aria-label="Тема Ліс">
+<title>Тема Ліс</title>
+<g font-family="-apple-system,'SF Pro Rounded','Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<rect x="8" y="8" width="330" height="158" rx="22" fill="#17211c" stroke="#808080" stroke-opacity=".3" stroke-width=".5"/>
+<text x="24" y="36" font-size="12" font-weight="600" fill="#ffffff" fill-opacity=".55">Рахуємо дні, а не нерви</text>
+<text x="322" y="36" font-size="12" font-weight="600" text-anchor="end" fill="#ffffff" fill-opacity=".55">49%</text>
+<text x="24" y="90" font-size="38" font-weight="600" fill="#ffffff">44<tspan dx="4" font-size="14" font-weight="500" fill-opacity=".55">/ 90 днів</tspan></text>
+<text x="322" y="90" font-size="15" font-weight="600" text-anchor="end" fill="#75d78d">ще 46 дн</text>
+<rect x="24.0" y="108" width="97.3" height="8" rx="4" fill="#ffffff" fill-opacity=".14"/><rect x="24.0" y="108" width="97.3" height="8" rx="4" fill="#75d78d"/><rect x="124.3" y="108" width="97.3" height="8" rx="4" fill="#ffffff" fill-opacity=".14"/><rect x="124.3" y="108" width="45.4" height="8" rx="4" fill="#75d78d"/><rect x="224.7" y="108" width="97.3" height="8" rx="4" fill="#ffffff" fill-opacity=".14"/>
+<rect x="24" y="130" width="83" height="22" rx="10" fill="#e3a2f2" fill-opacity=".18"/><path d="M33 137.2 L38 135 L43 137.2 V142 Q43 146 38 148 Q33 146 33 142 Z" fill="#e3a2f2"/><text x="72.5" y="145" font-size="11" font-weight="500" text-anchor="middle" fill="#e3a2f2">PL 30 дн</text><rect x="113" y="130" width="69" height="22" rx="10" fill="#ffffff" fill-opacity=".08" stroke="#edb345" stroke-opacity=".7" stroke-width="1"/><text x="147.5" y="145" font-size="11" font-weight="500" text-anchor="middle" fill="#edb345">DE 12 дн</text><rect x="188" y="130" width="63" height="22" rx="10" fill="#ffffff" fill-opacity=".08"/><text x="219.5" y="145" font-size="11" font-weight="500" text-anchor="middle" fill="#ffffff" fill-opacity=".8">CZ 2 дн</text>
+</g>
+</svg>
