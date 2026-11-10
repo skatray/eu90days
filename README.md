@@ -4,6 +4,8 @@
 
 ![demo](EU90Days_demo.gif)
 
+**[Завантажити EU90Days.js](https://raw.githubusercontent.com/skatray/eu90days/main/EU90Days.js)** · [Як додати на телефон](#додати-скрипт-на-телефон)
+
 ## Можливості
 
 - **Лічильник без дати початку.** Вводиш, скільки днів уже минуло, далі віджет сам додає +1 щодня.
@@ -38,9 +40,35 @@
 ## Встановлення
 
 1. Встанови [Scriptable](https://scriptable.app) з App Store.
-2. Поклади `EU90Days.js` у `iCloud Drive → Scriptable` (або створи новий скрипт у застосунку й встав код).
+2. Додай скрипт у Scriptable: [файл EU90Days.js](https://raw.githubusercontent.com/skatray/eu90days/main/EU90Days.js) або інсталятор, див. [«Додати скрипт на телефон»](#додати-скрипт-на-телефон).
 3. Додай на головний екран віджет Scriptable розміру Medium, натисни на нього й обери скрипт `EU90Days`.
 4. Дай Scriptable доступ до геолокації («Завжди»), інакше країна не визначатиметься.
+
+## Додати скрипт на телефон
+
+**Варіант 1: інсталятор (рекомендовано).** Копіюєш десяток рядків один раз, далі скрипт сам завантажує актуальну версію з GitHub.
+
+1. У Scriptable натисни «+», встав код нижче й назви скрипт `Install EU90`.
+2. Запусти його. Він збереже скрипт як `EU90Days`.
+3. Щоб оновитись пізніше, запусти інсталятор ще раз.
+
+```js
+const SRC = "https://raw.githubusercontent.com/skatray/eu90days/main/EU90Days.js";
+const code = await new Request(SRC).loadString();
+if (!code.includes("Scriptable")) throw new Error("Unexpected response");
+let fm;
+try { fm = FileManager.iCloud(); fm.documentsDirectory(); } catch (e) { fm = FileManager.local(); }
+fm.writeString(fm.joinPath(fm.documentsDirectory(), "EU90Days.js"), code);
+const a = new Alert();
+a.title = "Done";
+a.message = "EU90Days installed. Open it in Scriptable.";
+a.addAction("OK");
+await a.present();
+```
+
+**Варіант 2: файл напряму.** [Відкрити EU90Days.js](https://raw.githubusercontent.com/skatray/eu90days/main/EU90Days.js). У Safari довго утримуй посилання → «Завантажити пов'язаний файл», потім у «Файлах» поділись файлом у Scriptable або перемісти його в `iCloud Drive → Scriptable`.
+
+> Кодування: українські рядки в `EU90Days.js` записані як `\uXXXX`, тому текст у віджеті не ламається, навіть якщо файл при перенесенні прочитали в неправильному кодуванні. Українські коментарі в коді можуть виглядати кракозябрами, це на роботу не впливає.
 
 ## Налаштування
 
