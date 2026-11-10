@@ -2,8 +2,8 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: blue; icon-glyph: calendar-check;
 // EU 90 Days — Scriptable widget
-// Параметр віджета (необов’язково): скільки днів уже минуло за лічильником, наприклад 44
-// Далі віджет сам додає по +1 на день.
+// Рахує правило 90/180: у будь-якому 180-денному вікні можна бути в Шенгені не більше 90 днів.
+// Дні задаються перебуваннями (країна + дати), далі їх доповнює геолокація двічі на день.
 // Запуск усередині застосунку Scriptable відкриває меню налаштувань.
 
 const TOTAL = 90;
@@ -26,7 +26,7 @@ function loadState() {
   try {
     if (fm.fileExists(statePath)) return JSON.parse(fm.readString(statePath));
   } catch (e) {}
-  return { baseDays: null, baseDate: null, protection: null, pauseInProtection: true, country: null, lastCheck: 0 };
+  return { stays: [], protection: null, pauseInProtection: true, country: null, lastCheck: 0 };
 }
 function saveState(s) { fm.writeString(statePath, JSON.stringify(s)); }
 
@@ -49,14 +49,6 @@ function logCountry(state, cc) {
   state.log[key] = arr;
   const cutoff = isoDay(new Date(Date.now() - 200 * 86400000));
   Object.keys(state.log).forEach((k) => { if (k < cutoff) delete state.log[k]; });
-}
-function countryDays(state) {
-  const res = {};
-  Object.values(state.log || {}).forEach((arr) =>
-    arr.forEach((cc) => (res[cc] = (res[cc] || 0) + 1))
-  );
-  Object.entries(state.offsets || {}).forEach(([cc, n]) => (res[cc] = (res[cc] || 0) + n));
-  return Object.entries(res).sort((a, b) => b[1] - a[1]);
 }
 
 // ---------- геолокація ----------
@@ -81,39 +73,108 @@ async function updateGeo(state, force = false) {
   }
 }
 
-// ---------- лічильник ----------
+// ---------- перебування і правило 90/180 ----------
+const WINDOW = 180;
+
 function startOfDay(d) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
 }
-function setDaysPassed(state, n) {
-  state.baseDays = Math.min(TOTAL, Math.max(0, Math.round(n)));
-  state.baseDate = startOfDay(new Date()).toISOString();
+function addDays(d, n) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 }
+function parseDay(str) {
+  const [y, m, d] = str.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+function fmtDay(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}`;
+}
+function fmtFull(d) {
+  return `${fmtDay(d)}.${d.getFullYear()}`;
+}
+
 function pauseOn(state) {
   return !!state.protection && state.pauseInProtection !== false;
 }
+// день зараховується, якщо в ньому була хоч одна країна, крім випадку "лише країна захисту"
+function countsToward(state, arr) {
+  if (!arr || !arr.length) return false;
+  return !(pauseOn(state) && arr.every((c) => c === state.protection));
+}
+
+// карта днів: "РРРР-ММ-ДД" -> [країни]; береться з перебувань і з журналу геолокації
+function dayMap(state) {
+  const map = {};
+  const add = (key, cc) => {
+    const a = map[key] || (map[key] = []);
+    if (!a.includes(cc)) a.push(cc);
+  };
+  (state.stays || []).forEach((s) => {
+    let d = parseDay(s.from);
+    const end = parseDay(s.to);
+    for (let i = 0; i < 800 && d <= end; i++) {
+      add(isoDay(d), s.cc);
+      d = addDays(d, 1);
+    }
+  });
+  Object.entries(state.log || {}).forEach(([k, arr]) => arr.forEach((cc) => add(k, cc)));
+  return map;
+}
+
+// скільки днів використано у 180-денному вікні, що закінчується датою T
+function usedOn(state, map, T) {
+  let n = 0;
+  for (let i = 0; i < WINDOW; i++) {
+    if (countsToward(state, map[isoDay(addDays(T, -i))])) n++;
+  }
+  return n;
+}
+
+// used — використано днів; left — скільки ще днів можна лишитись безперервно (після сьогодні);
+// exit — остання дата, до якої можна лишатись (null, якщо ліміт уже перевищено)
+function summary(state) {
+  const map = dayMap(state);
+  const today = startOfDay(new Date());
+  const used = usedOn(state, map, today);
+  let last = null;
+  for (let d = 0; d <= WINDOW + TOTAL; d++) {
+    const T = addDays(today, d);
+    let n = 0;
+    for (let i = 0; i < WINDOW; i++) {
+      const k = addDays(T, -i);
+      // сьогодні й майбутні дні вважаємо проведеними в Шенгені
+      if (k >= today || countsToward(state, map[isoDay(k)])) n++;
+    }
+    if (n <= TOTAL) last = d;
+    else break;
+  }
+  return { map, used, left: last == null ? 0 : last, exit: last == null ? null : addDays(today, last) };
+}
+
+// дні по країнах у поточному 180-денному вікні
+function countryDays(state, map) {
+  const today = startOfDay(new Date());
+  const res = {};
+  for (let i = 0; i < WINDOW; i++) {
+    const arr = map[isoDay(addDays(today, -i))];
+    if (arr) arr.forEach((cc) => (res[cc] = (res[cc] || 0) + 1));
+  }
+  return Object.entries(res).sort((a, b) => b[1] - a[1]);
+}
+
 // чи був сьогодні лише в країні захисту (тоді лічильник стоїть на паузі)
-function inProtectionToday(state) {
+function inProtectionToday(state, map) {
   if (!pauseOn(state)) return false;
-  const arr = (state.log || {})[isoDay(new Date())] || [];
+  const arr = map[isoDay(new Date())] || [];
   return arr.length > 0 && arr.every((c) => c === state.protection);
 }
-function daysPassed(state) {
-  const base = startOfDay(state.baseDate);
-  const elapsed = Math.round((startOfDay(new Date()) - base) / 86400000);
-  let n = state.baseDays;
-  for (let i = 1; i <= elapsed && i <= 400; i++) {
-    if (pauseOn(state)) {
-      // дні лише в країні захисту не рахуємо; дні без даних рахуємо (обережно)
-      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
-      const arr = (state.log || {})[isoDay(d)];
-      if (arr && arr.length && arr.every((c) => c === state.protection)) continue;
-    }
-    n++;
-  }
-  return Math.min(TOTAL, Math.max(0, n));
+
+// чи є дані користувача (перебування, журнал геолокації або обрана країна захисту)
+function hasUserData(state) {
+  return (state.stays || []).length > 0 || Object.keys(state.log || {}).length > 0 || !!state.protection;
 }
 
 // ---------- фрази ----------
@@ -133,6 +194,25 @@ const PHRASES = [
   [85, ["Плануємо наступний крок", "Позаду більша частина", "Час звірити маршрут"]],
   [100, ["Лишилось зовсім трохи", "Пора збирати валізу", "Фінішна пряма"]]
 ];
+
+// ---------- зайчик із символів ----------
+const BUNNY = {
+  idle: ["(\\_/)", "(o.o)"],
+  hop: ["(\\_/)", "(^.^)"],
+  sleep: ["(\\_/)", "(-.-)"],
+  alert: ["(\\_/)", "(O.O)"],
+  limit: ["(\\_/)", "(>.<)"],
+  wave: ["(\\_/)", "(^o^)/"]
+};
+// поза залежить від стану; "idle" і "hop" чергуються з кожним оновленням віджета (блоки по 10 хвилин)
+function bunnyPose(state, pct, paused) {
+  const ar = state.arrived;
+  if (ar && Date.now() - ar.at < 36 * 3600 * 1000) return "wave";
+  if (paused) return "sleep";
+  if (pct >= 100) return "limit";
+  if (pct >= 85) return "alert";
+  return Math.floor(Date.now() / (10 * 60 * 1000)) % 2 ? "hop" : "idle";
+}
 
 // фраза дня: привітання в новій країні > віха > пауза > фраза за етапом
 function phrase(state, passed, pct, paused) {
@@ -218,10 +298,11 @@ function addChip(parent, cc, n, { isCur, protect, warn }) {
 
 async function buildWidget(state) {
   setTheme(state);
-  const passed = daysPassed(state);
-  const left = TOTAL - passed;
+  const sm = summary(state);
+  const passed = Math.min(TOTAL, sm.used);
+  const left = sm.left;
   const pct = Math.round((passed / TOTAL) * 100);
-  const paused = inProtectionToday(state);
+  const paused = inProtectionToday(state, sm.map);
   const accent = new Color(paused ? PAL.protect : pct >= 85 ? PAL.danger : pct >= 60 ? PAL.warn : PAL.ok);
   const secondary = new Color(PAL.fg, 0.55);
   const W = contentWidth();
@@ -239,7 +320,7 @@ async function buildWidget(state) {
   t.lineLimit = 1;
   t.minimumScaleFactor = 0.8;
   head.addSpacer();
-  const p = head.addText(paused ? `ПАУЗА В ${state.protection}` : `${pct}%`);
+  const p = head.addText(paused ? `ПАУЗА В ${state.protection}` : sm.exit ? `до ${fmtDay(sm.exit)}` : "ЛІМІТ");
   p.font = Font.semiboldSystemFont(12);
   p.textColor = paused ? new Color(PAL.protect) : secondary;
 
@@ -261,6 +342,25 @@ async function buildWidget(state) {
   l.textColor = paused ? secondary : accent;
 
   w.addSpacer();
+
+  // зайчик стоїть над баром там, де закінчується заповнення (рухається разом із прогресом)
+  if (config.widgetFamily !== "small") {
+    const pose = bunnyPose(state, pct, paused);
+    const zone = w.addStack();
+    zone.bottomAlignContent();
+    const bx = Math.round((W - 30) * (passed / TOTAL));
+    if (bx > 0) zone.addSpacer(bx);
+    const bunny = zone.addStack();
+    bunny.layoutVertically();
+    bunny.setPadding(0, 0, pose === "hop" ? 4 : 0, 0);
+    BUNNY[pose].forEach((line) => {
+      const bt = bunny.addText(line);
+      bt.font = Font.regularMonospacedSystemFont(8);
+      bt.textColor = new Color(PAL.fg, 0.75);
+    });
+    zone.addSpacer();
+    w.addSpacer(2);
+  }
 
   // прогрес-бар із трьох сегментів по 30 днів (віхи), зі стеків без зображень
   const GAP = 3;
@@ -287,7 +387,7 @@ async function buildWidget(state) {
 
   // країни: країна захисту — окремий лічильник, решта — чипи (без дублювання)
   const cur = state.country;
-  const all = countryDays(state);
+  const all = countryDays(state, sm.map);
   const maxOthers = state.protection ? 2 : 3;
   let others = all.filter(([cc]) => cc !== state.protection).slice(0, maxOthers);
   if (cur && cur !== state.protection && !others.some(([cc]) => cc === cur)) {
@@ -310,25 +410,32 @@ async function buildWidget(state) {
     m.textColor = secondary;
   }
 
-  w.refreshAfterDate = new Date(Date.now() + GEO_INTERVAL_MS);
+  // просимо iOS оновлювати віджет раз на 15 хвилин (геолокація при цьому запитується не частіше, ніж раз на 12 годин)
+  w.refreshAfterDate = new Date(Date.now() + 15 * 60 * 1000);
   return w;
 }
 
 // ---------- меню (у застосунку) ----------
 async function menu(state) {
+  const sm = summary(state);
   const a = new Alert();
-  a.title = "ЄС: 90 днів";
-  a.message = `Минуло днів: ${daysPassed(state)} / ${TOTAL}\nТема: ${(THEMES[state.theme] || THEMES.forest).name}\nТимчасовий захист: ${state.protection ? flag(state.protection) + " " + (COUNTRIES[state.protection] || state.protection) : "немає"}\nВизначено: ${flag(state.country)} ${state.country || "—"}`;
-  a.addAction("Вказати, скільки днів минуло");
-  a.addAction("Обрати країну тимчасового захисту");
-  a.addAction("Оновити геолокацію зараз");
-  a.addAction("Переглянути віджет");
-  a.addAction("Додати минулі дні для країни");
-  a.addAction("Скинути журнал країн");
-  a.addAction("Завантажити тестові дані");
-  a.addAction("Кольорова тема");
+  a.title = "ЄС: правило 90/180";
+  a.message = `Використано: ${Math.min(TOTAL, sm.used)} із ${TOTAL} днів\nМожна лишатись до: ${sm.exit ? fmtFull(sm.exit) : "ліміт вичерпано"}\nТема: ${(THEMES[state.theme] || THEMES.forest).name}\nТимчасовий захист: ${state.protection ? flag(state.protection) + " " + (COUNTRIES[state.protection] || state.protection) : "немає"}\nВизначено: ${flag(state.country)} ${state.country || "—"}`;
+  const items = [
+    ["stay", "Додати перебування"],
+    ["stays", "Перебування (перегляд, видалення)"],
+    ["protect", "Обрати країну тимчасового захисту"],
+    ["geo", "Оновити геолокацію зараз"],
+    ["preview", "Переглянути віджет"],
+    ["clear", "Очистити всі дані"]
+  ];
+  // тестові дані доступні лише коли даних користувача немає, щоб їх не затерти
+  if (!hasUserData(state)) items.push(["test", "Завантажити тестові дані"]);
+  items.push(["theme", "Кольорова тема"]);
+  items.forEach(([, label]) => a.addAction(label));
   a.addCancelAction("Закрити");
-  return await a.presentSheet();
+  const i = await a.presentSheet();
+  return i >= 0 ? items[i][0] : null;
 }
 
 async function chooseCode(title) {
@@ -354,79 +461,134 @@ async function pickCountry(state) {
   else if (i > 0) state.protection = codes[i - 1];
 }
 
+// додати перебування: країна, дата в'їзду, дата виїзду (обидва дні рахуються)
+async function addStay(state) {
+  const cc = await chooseCode("Країна перебування");
+  if (!cc) return;
+  let from, to;
+  try {
+    const dp = new DatePicker();
+    dp.initialDate = addDays(startOfDay(new Date()), -30);
+    from = await dp.pickDate();
+  } catch (e) {
+    return;
+  }
+  const q = new Alert();
+  q.title = "Дата виїзду";
+  q.message = "Останній день перебування. День в'їзду й день виїзду рахуються.";
+  q.addAction("Сьогодні");
+  q.addAction("Обрати дату");
+  q.addCancelAction("Скасувати");
+  const r = await q.presentSheet();
+  if (r < 0) return;
+  to = startOfDay(new Date());
+  if (r === 1) {
+    try {
+      const dp2 = new DatePicker();
+      dp2.initialDate = from;
+      to = await dp2.pickDate();
+    } catch (e) {
+      return;
+    }
+  }
+  from = startOfDay(from);
+  to = startOfDay(to);
+  if (to < from) [from, to] = [to, from];
+  state.stays = state.stays || [];
+  state.stays.push({ cc, from: isoDay(from), to: isoDay(to) });
+}
+
+// перегляд і видалення перебувань
+async function manageStays(state) {
+  const list = (state.stays || []).slice().sort((x, y) => (x.from < y.from ? 1 : -1));
+  const a = new Alert();
+  if (!list.length) {
+    a.title = "Перебувань ще немає";
+    a.addAction("Гаразд");
+    await a.present();
+    return;
+  }
+  a.title = "Перебування";
+  a.message = "Оберіть запис, щоб видалити його.";
+  list.forEach((s) =>
+    a.addAction(`${flag(s.cc)} ${COUNTRIES[s.cc] || s.cc}: ${fmtFull(parseDay(s.from))} – ${fmtFull(parseDay(s.to))}`)
+  );
+  a.addCancelAction("Назад");
+  const i = await a.presentSheet();
+  if (i < 0) return;
+  const c = new Alert();
+  c.title = "Видалити перебування?";
+  c.addDestructiveAction("Видалити");
+  c.addCancelAction("Скасувати");
+  if ((await c.presentAlert()) === 0) state.stays = state.stays.filter((s) => s !== list[i]);
+}
+
 // ---------- запуск ----------
 const state = loadState();
 
-// параметр віджета = швидка зміна лічильника
-const param = (args.widgetParameter || "").trim();
-if (/^\d{1,3}$/.test(param)) {
-  // застосовуємо параметр лише коли він змінився, інакше він щодня "скидав" би лічильник
-  if (state.lastParam !== param) {
-    setDaysPassed(state, parseInt(param, 10));
-    state.lastParam = param;
+// міграція зі старої версії (лічильник "скільки днів минуло") на перебування
+if (state.baseDays != null || state.baseDate || state.start || state.offsets) {
+  state.stays = state.stays || [];
+  if (state.baseDays > 0 && state.baseDate) {
+    const base = startOfDay(state.baseDate);
+    state.stays.push({ cc: "EU", from: isoDay(addDays(base, -(state.baseDays - 1))), to: isoDay(base) });
   }
+  delete state.baseDays;
+  delete state.baseDate;
+  delete state.start;
+  delete state.offsets;
+  delete state.lastParam;
 }
-if (state.baseDays == null || !state.baseDate) {
-  // міграція зі старої версії (дата початку) або перший запуск
-  if (state.start) {
-    setDaysPassed(state, Math.floor((startOfDay(new Date()) - startOfDay(state.start)) / 86400000));
-    delete state.start;
-  } else {
-    setDaysPassed(state, 0);
-  }
-}
+state.stays = state.stays || [];
 
 if (config.runsInApp) {
-  let i = await menu(state);
-  while (i >= 0) {
-    if (i === 0) {
-      const q = new Alert();
-      q.title = "Скільки днів уже минуло?";
-      q.message = "Число з вашого лічильника, 0–90. Далі віджет додає +1 щодня.";
-      q.addTextField("напр. 44", String(daysPassed(state)));
-      q.addAction("Зберегти");
-      q.addCancelAction("Скасувати");
-      if ((await q.presentAlert()) === 0) {
-        const n = parseInt(q.textFieldValue(0), 10);
-        if (!isNaN(n)) setDaysPassed(state, n);
-      }
-    } else if (i === 1) {
+  let id = await menu(state);
+  while (id) {
+    if (id === "stay") {
+      await addStay(state);
+    } else if (id === "stays") {
+      await manageStays(state);
+    } else if (id === "protect") {
       await pickCountry(state);
-    } else if (i === 2) {
+    } else if (id === "geo") {
       await updateGeo(state, true);
-    } else if (i === 3) {
+    } else if (id === "preview") {
       saveState(state);
       const pw = await buildWidget(state);
       await pw.presentMedium();
-    } else if (i === 4) {
-      const cc = await chooseCode("Яка країна?");
-      if (cc) {
-        const q = new Alert();
-        q.title = `Днів уже проведено: ${COUNTRIES[cc]}`;
-        q.message = "Це число додається до того, що віджет рахує сам.";
-        q.addTextField("напр. 30", String((state.offsets || {})[cc] || 0));
-        q.addAction("Зберегти");
-        q.addCancelAction("Скасувати");
-        if ((await q.presentAlert()) === 0) {
-          const n = parseInt(q.textFieldValue(0), 10);
-          if (!isNaN(n) && n >= 0) {
-            state.offsets = state.offsets || {};
-            state.offsets[cc] = n;
-          }
-        }
+    } else if (id === "clear") {
+      const c = new Alert();
+      c.title = "Очистити всі дані?";
+      c.message = "Буде видалено перебування, журнал геолокації й обрану країну захисту.";
+      c.addDestructiveAction("Очистити");
+      c.addCancelAction("Скасувати");
+      if ((await c.presentAlert()) === 0) {
+        state.stays = [];
+        state.log = {};
+        state.protection = null;
+        state.country = null;
+        delete state.arrived;
       }
-    } else if (i === 5) {
-      state.log = {};
-      state.offsets = {};
-    } else if (i === 6) {
-      // тестові дані для перегляду дизайну
-      setDaysPassed(state, 44);
+    } else if (id === "test") {
+      // тестові дані для перегляду дизайну; ніколи не перезаписують дані користувача
+      if (hasUserData(state)) {
+        const g = new Alert();
+        g.title = "Тестові дані не завантажено";
+        g.message = "Є ваші дані. Щоб їх не затерти, тестові дані доступні лише на порожньому стані.";
+        g.addAction("Гаразд");
+        await g.present();
+        saveState(state);
+        id = await menu(state);
+        continue;
+      }
+      const t = startOfDay(new Date());
+      const S = (cc, a, b) => ({ cc, from: isoDay(addDays(t, -a)), to: isoDay(addDays(t, -b)) });
+      state.stays = [S("DE", 69, 31), S("CZ", 30, 29), S("PL", 28, 3), S("AT", 2, 1), S("DE", 0, 0)];
       state.protection = "PL";
       state.country = "DE";
       state.log = {};
-      state.offsets = { PL: 30, DE: 12, CZ: 2 };
       state.arrived = { cc: "DE", at: Date.now() };
-    } else if (i === 7) {
+    } else if (id === "theme") {
       const keys = Object.keys(THEMES);
       const ta = new Alert();
       ta.title = "Кольорова тема";
@@ -436,7 +598,7 @@ if (config.runsInApp) {
       if (ti >= 0) state.theme = keys[ti];
     }
     saveState(state);
-    i = await menu(state);
+    id = await menu(state);
   }
   saveState(state);
 } else {
