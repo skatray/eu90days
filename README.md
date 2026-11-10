@@ -6,7 +6,7 @@
 
 ![bunny](EU90Days_bunny.gif)
 
-**[Завантажити EU90Days.scriptable](https://github.com/skatray/eu90days/raw/main/EU90Days.scriptable)** · [EU90Days.js](https://raw.githubusercontent.com/skatray/eu90days/main/EU90Days.js) · [Як додати на телефон](#додати-скрипт-на-телефон)
+**[Завантажити EU90Days.scriptable](https://raw.githubusercontent.com/skatray/eu90days/main/EU90Days.scriptable?download=1)** · [EU90Days.js](https://raw.githubusercontent.com/skatray/eu90days/main/EU90Days.js) · [Як додати на телефон](#додати-скрипт-на-телефон)
 
 ## Можливості
 
@@ -70,7 +70,7 @@ a.addAction("OK");
 await a.present();
 ```
 
-**Варіант 2: файл `.scriptable`.** [Завантажити EU90Days.scriptable](https://github.com/skatray/eu90days/raw/main/EU90Days.scriptable). Це формат, який Scriptable імпортує сам: ім'я, іконка й код підтягуються автоматично. У Safari довго утримуй посилання → «Завантажити пов'язаний файл», потім у «Файлах» відкрий файл і обери Scriptable (або «Поділитись» → Scriptable).
+**Варіант 2: файл `.scriptable`.** [Завантажити EU90Days.scriptable](https://raw.githubusercontent.com/skatray/eu90days/main/EU90Days.scriptable?download=1). Це формат, який Scriptable імпортує сам: ім'я, іконка й код підтягуються автоматично. У Safari довго утримуй посилання → «Завантажити пов'язаний файл», потім у «Файлах» відкрий файл і обери Scriptable (або «Поділитись» → Scriptable).
 
 **Варіант 3: звичайний `.js`.** [Відкрити EU90Days.js](https://raw.githubusercontent.com/skatray/eu90days/main/EU90Days.js). Збережи файл і перемісти його в `iCloud Drive → Scriptable`.
 
