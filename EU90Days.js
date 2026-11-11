@@ -561,6 +561,9 @@ if (state.baseDays != null || state.baseDate || state.start || state.offsets) {
 }
 state.stays = state.stays || [];
 
+// старі версії могли зберегти вимкнену паузу; меню для її вимкнення немає, тому вмикаємо
+if (state.pauseInProtection === false) state.pauseInProtection = true;
+
 if (config.runsInApp) {
   let id = await menu(state);
   while (id) {
