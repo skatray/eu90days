@@ -6,7 +6,7 @@
 // Дні задаються перебуваннями (країна + дати), далі їх доповнює геолокація двічі на день.
 // Запуск усередині застосунку Scriptable відкриває меню налаштувань.
 
-const VERSION = "1.1.0"; // версія скрипта: збільшуйте при кожній зміні
+const VERSION = "1.1.1"; // версія скрипта: збільшуйте при кожній зміні
 const TOTAL = 90;
 const GEO_INTERVAL_MS = 12 * 3600 * 1000; // двічі на день
 
@@ -27,7 +27,7 @@ function loadState() {
   try {
     if (fm.fileExists(statePath)) return JSON.parse(fm.readString(statePath));
   } catch (e) {}
-  return { stays: [], protection: null, pauseInProtection: true, country: null, lastCheck: 0 };
+  return { stays: [], protection: null, country: null, lastCheck: 0 };
 }
 function saveState(s) { fm.writeString(statePath, JSON.stringify(s)); }
 
@@ -98,7 +98,7 @@ function fmtFull(d) {
 }
 
 function pauseOn(state) {
-  return !!state.protection && state.pauseInProtection !== false;
+  return !!state.protection;
 }
 // день зараховується, якщо в ньому була хоч одна країна, крім випадку "лише країна захисту"
 function countsToward(state, arr) {
@@ -422,7 +422,7 @@ async function showDebug(state) {
   const today = startOfDay(new Date());
   const lines = [
     `версія=${VERSION}`,
-    `захист=${state.protection || "немає"}, пауза=${pauseOn(state)} (pauseInProtection=${state.pauseInProtection})`,
+    `захист=${state.protection || "немає"}, пауза=${pauseOn(state)}`,
     `використано=${usedOn(state, map, today)}`
   ];
   for (let i = 0; i < WINDOW; i++) {
@@ -563,8 +563,8 @@ if (state.baseDays != null || state.baseDate || state.start || state.offsets) {
 }
 state.stays = state.stays || [];
 
-// старі версії могли зберегти вимкнену паузу; меню для її вимкнення немає, тому вмикаємо
-if (state.pauseInProtection === false) state.pauseInProtection = true;
+// застарілий прапорець старих версій, який міг вимикати паузу; тепер пауза залежить лише від країни захисту
+delete state.pauseInProtection;
 
 if (config.runsInApp) {
   let id = await menu(state);
