@@ -6,6 +6,7 @@
 // Дні задаються перебуваннями (країна + дати), далі їх доповнює геолокація двічі на день.
 // Запуск усередині застосунку Scriptable відкриває меню налаштувань.
 
+const VERSION = "1.1.0"; // версія скрипта: збільшуйте при кожній зміні
 const TOTAL = 90;
 const GEO_INTERVAL_MS = 12 * 3600 * 1000; // двічі на день
 
@@ -420,6 +421,7 @@ async function showDebug(state) {
   const map = dayMap(state);
   const today = startOfDay(new Date());
   const lines = [
+    `версія=${VERSION}`,
     `захист=${state.protection || "немає"}, пауза=${pauseOn(state)} (pauseInProtection=${state.pauseInProtection})`,
     `використано=${usedOn(state, map, today)}`
   ];
@@ -439,7 +441,7 @@ async function menu(state) {
   const sm = summary(state);
   const a = new Alert();
   a.title = "ЄС: правило 90/180";
-  a.message = `Використано: ${Math.min(TOTAL, sm.used)} із ${TOTAL} днів\nМожна лишатись до: ${sm.exit ? fmtFull(sm.exit) : "ліміт вичерпано"}\nТема: ${(THEMES[state.theme] || THEMES.forest).name}\nТимчасовий захист: ${state.protection ? flag(state.protection) + " " + (COUNTRIES[state.protection] || state.protection) : "немає"}\nВизначено: ${flag(state.country)} ${state.country || "—"}`;
+  a.message = `Версія: ${VERSION}\nВикористано: ${Math.min(TOTAL, sm.used)} із ${TOTAL} днів\nМожна лишатись до: ${sm.exit ? fmtFull(sm.exit) : "ліміт вичерпано"}\nТема: ${(THEMES[state.theme] || THEMES.forest).name}\nТимчасовий захист: ${state.protection ? flag(state.protection) + " " + (COUNTRIES[state.protection] || state.protection) : "немає"}\nВизначено: ${flag(state.country)} ${state.country || "—"}`;
   const items = [
     ["stay", "Додати перебування"],
     ["stays", "Перебування (перегляд, видалення)"],
