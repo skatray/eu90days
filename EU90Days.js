@@ -415,6 +415,25 @@ async function buildWidget(state) {
   return w;
 }
 
+// діагностика: які дні є в даних і чи зараховуються до 90/180
+async function showDebug(state) {
+  const map = dayMap(state);
+  const today = startOfDay(new Date());
+  const lines = [
+    `захист=${state.protection || "немає"}, пауза=${pauseOn(state)} (pauseInProtection=${state.pauseInProtection})`,
+    `використано=${usedOn(state, map, today)}`
+  ];
+  for (let i = 0; i < WINDOW; i++) {
+    const k = isoDay(addDays(today, -i));
+    const arr = map[k];
+    if (arr) lines.push(`${k.slice(5)}: ${arr.join("+")} ${countsToward(state, arr) ? "✓" : "–"}`);
+  }
+  const a = new Alert();
+  a.title = "Діагностика";
+  a.message = lines.join("\n");
+  a.addAction("OK");
+  await a.presentAlert();
+}
 // ---------- меню (у застосунку) ----------
 async function menu(state) {
   const sm = summary(state);
@@ -427,6 +446,7 @@ async function menu(state) {
     ["protect", "Обрати країну тимчасового захисту"],
     ["geo", "Оновити геолокацію зараз"],
     ["preview", "Переглянути віджет"],
+    ["debug", "Діагностика (журнал днів)"],
     ["clear", "Очистити всі дані"]
   ];
   // тестові дані доступні лише коли даних користувача немає, щоб їх не затерти
@@ -556,6 +576,8 @@ if (config.runsInApp) {
       saveState(state);
       const pw = await buildWidget(state);
       await pw.presentMedium();
+    } else if (id === "debug") {
+      await showDebug(state);
     } else if (id === "clear") {
       const c = new Alert();
       c.title = "Очистити всі дані?";
